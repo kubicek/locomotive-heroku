@@ -1,4 +1,4 @@
-require 'heroku-api'
+require 'platform-api'
 require 'locomotive/heroku/patches'
 require 'locomotive/heroku/custom_domain'
 require 'locomotive/heroku/first_installation'
@@ -12,12 +12,12 @@ module Locomotive
 
       def domains
         if @domains.nil?
-          response = self.connection.get_domains(self.app_name)
-
-          if response.status == 200
-            @domains = response.body.map { |h| h['domain'] }.reject { |n| n.starts_with?('*') }
-          else
+          begin
+            response = self.connection.domain.list(self.app_name)
+          rescue
             @domains = []
+          else
+            @domains = response.map { |h| h['hostname'] }.reject { |n| n.starts_with?('*') }
           end
         else
           @domains
@@ -29,7 +29,7 @@ module Locomotive
 
         raise 'The Heroku API key is mandatory' if ENV['HEROKU_API_KEY'].blank? && Locomotive.config.hosting[:api_key].blank?
 
-        @connection = ::Heroku::API.new(:api_key => ENV['HEROKU_API_KEY'] || Locomotive.config.hosting[:api_key])
+        @connection = ::PlatformAPI.connect_oauth(ENV['HEROKU_API_KEY'] || Locomotive.config.hosting[:api_key])
       end
 
       def app_name
